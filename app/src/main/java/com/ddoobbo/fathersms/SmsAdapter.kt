@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.ddoobbo.fathersms.databinding.ItemSmsListBinding
 import com.ddoobbo.fathersms.model.SmsInfo
+import com.ddoobbo.fathersms.model.StSms
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -15,9 +16,9 @@ class StoreViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
 class SmsAdapter : RecyclerView.Adapter<StoreViewHolder>() {
 
-    private var smsList: List<SmsInfo> = ArrayList()
+    private var smsList: List<StSms> = ArrayList()
 
-    fun updateItems(items: ArrayList<SmsInfo>) {
+    fun updateItems(items: ArrayList<StSms>) {
         smsList = items
         notifyDataSetChanged()
     }
@@ -29,19 +30,18 @@ class SmsAdapter : RecyclerView.Adapter<StoreViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: StoreViewHolder, position: Int) {
-        val sms = smsList[position]
-        holder.binding.address.text = sms.address
-        holder.binding.time.text = getDateTime(sms.timestamp)
-        holder.binding.body.text = sms.text
+        val stSms = smsList[position]
+        holder.binding.address.text = stSms.smsList[0].address
+        holder.binding.time.text = getDateTime(stSms.smsList[0].timestamp)
+        holder.binding.body.text = stSms.smsList[0].text
     }
 
     override fun getItemCount() = smsList.size
 
     private fun getDateTime(s: Long): String? {
         try {
-            val sdf = SimpleDateFormat("M월 d일 hh:mm")
-            val netDate = Date(s * 1000)
-            return sdf.format(netDate)
+            val sdf = SimpleDateFormat("yy년 M월 d일 hh:mm")
+            return sdf.format(s)
         } catch (e: Exception) {
             return e.toString()
         }

@@ -14,10 +14,13 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.ddoobbo.fathersms.model.SmsInfo;
+import com.ddoobbo.fathersms.model.StSms;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -53,8 +56,9 @@ public class MainActivity extends AppCompatActivity {
         String string = "";
         int count = 0;
 
-        ArrayList<SmsInfo> smsList = new ArrayList<>();
+        ArrayList<StSms> stSmsList = new ArrayList<>();
 
+        String stAddress = "";
         while (c.moveToNext()) {
             String address = c.getString(2);
 
@@ -72,15 +76,55 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("heylee", ++count + "st, Message: " + body+", address: "+address+", timestamp: "+timestamp);
 
                 SmsInfo sms = new SmsInfo(timestamp, address, body);
-                smsList.add(sms);
+
+                if(!address.equals(stAddress)) {
+                    stAddress = address;
+                    ArrayList<SmsInfo> s = new ArrayList<>();
+                    s.add(sms);
+                    stSmsList.add(new StSms(stAddress, timestamp, s));
+                } else {
+                    StSms st = stSmsList.get(stSmsList.size()-1);
+                    if(st.getLatestTimestamp() < timestamp)
+                        st.setLatestTimestamp(timestamp);
+
+                    st.getSmsList().add(sms);
+                }
             }
+        }
+
+        for (int i = 0; i < stSmsList.size(); i++) {
+            for (int j = 0; j < stSmsList.get(i).getSmsList().size(); j++) {
+                Collections.sort(stSmsList.get(i).getSmsList(), new Comparator<SmsInfo>() {
+                    @Override
+                    public int compare(SmsInfo o1, SmsInfo o2) {
+                        if(o1.getTimestamp() > o2.getTimestamp()) {
+                            return -1;
+                        } else {
+                            return 0;
+                        }
+                    }
+                });
+            }
+        }
+
+        for (int i = 0; i < stSmsList.size(); i++) {
+            Collections.sort(stSmsList, new Comparator<StSms>() {
+                @Override
+                public int compare(StSms o1, StSms o2) {
+                    if(o1.getLatestTimestamp() > o2.getLatestTimestamp()){
+                        return -1;
+                    } else {
+                        return 0;
+                    }
+                }
+            });
         }
 
         RecyclerView smsRv = findViewById(R.id.sms_list);
         smsRv.setLayoutManager(new LinearLayoutManager(this));
 
         SmsAdapter smsAdapter = new SmsAdapter();
-        smsAdapter.updateItems(smsList);
+        smsAdapter.updateItems(stSmsList);
         smsRv.setAdapter(smsAdapter);
     }
 }
