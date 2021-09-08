@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         while (c.moveToNext()) {
             String address = c.getString(2);
 
+
             if(!address.contains("1544")){
                 long messageId = c.getLong(0);
                 long threadId = c.getLong(1);
