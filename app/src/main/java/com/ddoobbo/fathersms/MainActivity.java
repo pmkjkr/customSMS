@@ -5,19 +5,26 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.ddoobbo.fathersms.model.Msg;
 import com.ddoobbo.fathersms.model.SmsInfo;
 import com.ddoobbo.fathersms.model.StSms;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -35,7 +42,9 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onPermissionGranted() {
                         Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
-                        readSMSMessage();
+                        scanMMS();
+                        scanSMS();
+//                        readSMSMessage();
                     }
 
                     @Override
@@ -59,6 +68,10 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<StSms> stSmsList = new ArrayList<>();
 
         String stAddress = "";
+
+        // _id, date, _data, text, address
+
+
         while (c.moveToNext()) {
             String address = c.getString(2);
 
@@ -68,13 +81,18 @@ public class MainActivity extends AppCompatActivity {
                 long threadId = c.getLong(1);
                 long contactId = c.getLong(3);
                 String contactId_string = String.valueOf(contactId);
+
+
+//
                 long timestamp = c.getLong(4);
                 String body = c.getString(5);
+//                long timestamp = c.getLong(1);
+//                String body = c.getString(4);
 
-                string = String.format("msgid:%d, threadid:%d, address:%s, " + "contactid:%d, contackstring:%s, timestamp:%d, body:%s", messageId, threadId, address, contactId,
-                        contactId_string, timestamp, body);
+//                string = String.format("msgid:%d, threadid:%d, address:%s, " + "contactid:%d, contackstring:%s, timestamp:%d, body:%s", messageId, threadId, address, contactId,
+//                        contactId_string, timestamp, body);
 
-                Log.d("heylee", ++count + "st, Message: " + body+", address: "+address+", timestamp: "+timestamp);
+                Log.d("text", ++count + "st, Message: " + body+", address: "+address+", timestamp: "+timestamp);
 
                 SmsInfo sms = new SmsInfo(timestamp, address, body);
 
@@ -127,5 +145,147 @@ public class MainActivity extends AppCompatActivity {
         SmsAdapter smsAdapter = new SmsAdapter();
         smsAdapter.updateItems(stSmsList);
         smsRv.setAdapter(smsAdapter);
+    }
+
+
+
+
+
+
+    @SuppressLint("Range")
+    public void scanSMS() {
+        System.out.println("==============================ScanSMS()==============================");
+        //Initialize Box
+        Uri uri = Uri.parse("content://sms");
+        String[] proj = {"*"};
+        ContentResolver cr = getContentResolver();
+
+        Cursor c = cr.query(uri,proj,null,null,null);
+
+        if(c.moveToFirst()) {
+            do {
+                String[] col = c.getColumnNames();
+                String str = "";
+                for(int i = 0; i < col.length; i++) {
+                    str = str + col[i] + ": " + c.getString(i) + ", ";
+                }
+                //System.out.println(str);
+
+                System.out.println("--------------------SMS------------------");
+
+                @SuppressLint("Range") Msg msg = new Msg(c.getString(c.getColumnIndex("_id")));
+                msg.setDate(c.getString(c.getColumnIndex("date")));
+                msg.setAddr(c.getString(c.getColumnIndex("Address")));
+                msg.setBody(c.getString(c.getColumnIndex("body")));
+                msg.setDirection(c.getString(c.getColumnIndex("type")));
+                msg.setContact(c.getString(c.getColumnIndex("person")));
+                System.out.println(msg);
+
+
+            } while (c.moveToNext());
+        }
+        c.close();
+    }
+
+    @SuppressLint("Range")
+    public void scanMMS() {
+        System.out.println("==============================ScanMMS()==============================");
+        //Initialize Box
+        Uri uri = Uri.parse("content://mms");
+        String[] proj = {"*"};
+        ContentResolver cr = getContentResolver();
+
+        Cursor c = cr.query(uri, proj, null, null, null);
+        Log.e("MainActivity", "scanMMS1");
+        int jj = 0;
+        if(c.moveToFirst()) {
+            do {
+                /*String[] col = c.getColumnNames();
+                String str = "";
+                for(int i = 0; i < col.length; i++) {
+                    str = str + col[i] + ": " + c.getString(i) + ", ";
+                }
+                System.out.println(str);*/
+                //System.out.println("--------------------MMS------------------");
+                @SuppressLint("Range") Msg msg = new Msg(c.getString(c.getColumnIndex("_id")));
+                msg.setThread(c.getString(c.getColumnIndex("thread_id")));
+                msg.setDate(c.getString(c.getColumnIndex("date")));
+                msg.setAddr(getMmsAddr(msg.getID()));
+
+                Log.e("MainActivity", "scanMMS2~ jj::"+jj);
+                ParseMMS(msg);
+                jj++;
+            } while (c.moveToNext());
+        }
+
+        c.close();
+
+    }
+
+    @SuppressLint("Range")
+    public void ParseMMS(Msg msg) {
+        Uri uri = Uri.parse("content://mms/part");
+        String mmsId = "mid = " + msg.getID();
+        Cursor c = getContentResolver().query(uri, null, mmsId, null, null);
+        int one = 0;
+        while(c.moveToNext() && one == 0) {
+/*          String[] col = c.getColumnNames();
+            String str = "";
+            for(int i = 0; i < col.length; i++) {
+                str = str + col[i] + ": " + c.getString(i) + ", ";
+            }
+            System.out.println(str);*/
+
+            @SuppressLint("Range") String pid = c.getString(c.getColumnIndex("_id"));
+            @SuppressLint("Range") String type = c.getString(c.getColumnIndex("ct"));
+            if ("text/plain".equals(type)) {
+//                msg.setBody(msg.getBody() + c.getString(c.getColumnIndex("text")));
+                msg.setBody(msg.getBody());
+                Log.e("MainActivity", "scanMMS3~ jj::"+msg.getBody());
+            }
+//            else if (type.contains("image")) {
+//                msg.setImg(getMmsImg(pid));
+//            }
+            one++;
+        }
+        c.close();
+    }
+
+    public Bitmap getMmsImg(String id) {
+        Uri uri = Uri.parse("content://mms/part/" + id);
+        InputStream in = null;
+        Bitmap bitmap = null;
+
+        try {
+            in = getContentResolver().openInputStream(uri);
+            bitmap = BitmapFactory.decodeStream(in);
+            if(in != null)
+                in.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return bitmap;
+    }
+
+    public String getMmsAddr(String id) {
+        String sel = new String("msg_id=" + id);
+        String uriString = MessageFormat.format("content://mms/{0}/addr", id);
+        Uri uri = Uri.parse(uriString);
+        Cursor c = getContentResolver().query(uri, null, sel, null, null);
+        String name = "";
+        while (c.moveToNext()) {
+/*          String[] col = c.getColumnNames();
+            String str = "";
+            for(int i = 0; i < col.length; i++) {
+                str = str + col[i] + ": " + c.getString(i) + ", ";
+            }
+            System.out.println(str);*/
+            @SuppressLint("Range") String t = c.getString(c.getColumnIndex("address"));
+            if(!(t.contains("insert")))
+                name = name + t + " ";
+        }
+        c.close();
+        return name;
     }
 }
