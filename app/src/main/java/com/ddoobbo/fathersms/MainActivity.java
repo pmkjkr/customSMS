@@ -169,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
                 for(int i = 0; i < col.length; i++) {
                     str = str + col[i] + ": " + c.getString(i) + ", ";
                 }
+
                 //System.out.println(str);
 
                 System.out.println("--------------------SMS------------------");
